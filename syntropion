@@ -1,0 +1,14 @@
+#!/usr/bin/env python3
+"""
+SYNTROPION OS — Autonomous Venture Studio Root CLI Executable Runner
+"""
+import sys
+import os
+
+# Ensure current directory is on python path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+from syntropion_core.cli import main
+
+if __name__ == "__main__":
+    main()

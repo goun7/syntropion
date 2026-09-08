@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SYNTROPION OS — Otonom Girişim Stüdyosu & Mikro-SaaS Fabrikası</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <!-- Top Global Navigation Bar -->
+  <header class="header">
+    <div class="header-container">
+      <div class="brand">
+        <img src="/static/assets/logo.jpg" alt="SYNTROPION OS" class="brand-logo">
+        <div class="brand-text">
+          <div class="brand-title">SYNTROPION <span>OS</span></div>
+          <div class="brand-subtitle">Autonomous Micro-SaaS Studio · v1.0.0</div>
+        </div>
+      </div>
+      <nav class="nav-tabs">
+        <button class="nav-btn active" data-target="panel-propose">1. Fikir & $10 Stake</button>
+        <button class="nav-btn" data-target="panel-socratic">2. Sokratik Mülakat (DDS)</button>
+        <button class="nav-btn" data-target="panel-cockpit">3. Stüdyo & Pilot SaaS</button>
+      </nav>
+      <div class="system-badge">
+        <span class="pulse-indicator"></span>
+        <span class="badge-text" id="shm-status">IPC HAZİNE: SENKRONİZE</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Live Macro Telemetry Bar -->
+  <section class="telemetry-bar">
+    <div class="telemetry-item">
+      <span class="telemetry-label">PORTFÖY MRR</span>
+      <span class="telemetry-val" id="metric-mrr">$44,175.00</span>
+    </div>
+    <div class="telemetry-item">
+      <span class="telemetry-label">AKTİF B2B MÜŞTERİ</span>
+      <span class="telemetry-val" id="metric-subs">275 Şirket</span>
+    </div>
+    <div class="telemetry-item">
+      <span class="telemetry-label">UZMAN KÂR DAĞITIMI (%20)</span>
+      <span class="telemetry-val emerald" id="metric-payouts">$8,835.00</span>
+    </div>
+    <div class="telemetry-item">
+      <span class="telemetry-label">MERKEZİ HAZİNE (%75)</span>
+      <span class="telemetry-val" id="metric-treasury">$33,131.25</span>
+    </div>
+    <div class="telemetry-item">
+      <span class="telemetry-label">FAIR-USE KOTA</span>
+      <span class="telemetry-val amber">5.000.000 Token/Ay</span>
+    </div>
+  </section>
+
+  <!-- Main Multi-Panel Workspace -->
+  <main class="main-content">
+    
+    <!-- PANEL 1: PROPOSAL SUBMISSION & $10 ESCROW GATE -->
+    <div id="panel-propose" class="workspace-panel active">
+      <div class="panel-header">
+        <div class="panel-tag">ADIM 1 / GİRİŞ FİLTRESİ</div>
+        <h2>Sektörel Acı Bildirimi ve $10 Stake-to-Propose Emanet Kapısı</h2>
+        <p class="panel-desc">
+          Boş ve yapay zeka tarafından uydurulmuş fikirleri engellemek için $10 emanet blokesi uygulanır. 
+          Fikriniz Sokratik Mülakatı (DDS &gt;= 0.75) geçemezse 60 saniye içinde kartınıza %100 iade edilir; geçerse mikro-SaaS sermayesine dönüştürülür.
+        </p>
+      </div>
+
+      <div class="two-column-layout">
+        <div class="card form-card">
+          <h3>Uzman ve Operasyonel Problem Formu</h3>
+          <form id="proposal-form">
+            <div class="form-row">
+              <div class="form-group">
+                <label>Ad Soyad / Unvan</label>
+                <input type="text" id="prop-name" placeholder="Dr. Ahmet Yılmaz / Av. Selin Baro" required>
+              </div>
+              <div class="form-group">
+                <label>E-Posta Adresi</label>
+                <input type="email" id="prop-email" placeholder="uzman@kurum.com.tr" required>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label>Sektörel Uzmanlık Alanı</label>
+                <select id="prop-domain" required>
+                  <option value="healthcare">Sağlık & Radyoloji / Onkoloji</option>
+                  <option value="legal">Ticaret Hukuku & Sözleşme Riski</option>
+                  <option value="accounting_tax">Mali Müşavirlik & Vergi Denetimi</option>
+                  <option value="customs_trade">Gümrük Müşavirliği & GTİP</option>
+                  <option value="maritime_logistics">Denizyolu Lojistiği & Demurraj</option>
+                  <option value="other">Diğer Dikey B2B Sektör</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Saha Deneyimi (Yıl)</label>
+                <input type="number" id="prop-exp" min="1" max="50" value="14" required>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label>Mikro-SaaS Girişim Başlığı</label>
+              <input type="text" id="prop-title" placeholder="Örn: Radyoloji MR/BT Raporu Karşılaştırmalı Lezyon Takip Ajanı" required>
+            </div>
+
+            <div class="form-group">
+              <label>Sahadaki Somut Darboğaz ve Zaman/Nakit Kaybı (Presidio PII Filtrelenir)</label>
+              <textarea id="prop-problem" rows="3" placeholder="Her gün 2.5 saatimizi alan, gözden kaçtığında milyonluk tazminat veya sağlık riski doğuran somut operasyonel acıyı anlatınız..." required></textarea>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label>Hedef B2B Müşteri Kim?</label>
+                <input type="text" id="prop-audience" placeholder="Özel hastane radyoloji birimleri" required>
+              </div>
+              <div class="form-group">
+                <label>Şu Anki Geçici Çözüm (Workaround)</label>
+                <input type="text" id="prop-workaround" placeholder="İki PDF raporu yan yana açıp elle kelime aramak" required>
+              </div>
+            </div>
+
+            <!-- FSEK Clickwrap Agreement -->
+            <div class="legal-box">
+              <label class="checkbox-container">
+                <input type="checkbox" id="prop-fsek" checked required>
+                <span class="checkmark"></span>
+                <span class="legal-text">
+                  <strong>5846 Sayılı FSEK (Madde 1/B, 2, 4) ve 6698 KVKK Safe-Harbor Sözleşmesini</strong> onaylıyorum.
+                  Fikirlerin değil somutlaştırılmış kodun korunduğunu, ürün başarıyla kodlandığında <strong>Ömür Boyu Ücretsiz Kurumsal Lisans (5M Token/Ay)</strong> ve <strong>%20 Net Gelir Payı (Milestone Vesting)</strong> alacağımı kabul ediyorum.
+                </span>
+              </label>
+            </div>
+
+            <button type="submit" class="primary-btn" id="btn-submit-proposal">
+              <span>$10 Emanet Yetkisi Ver &amp; Sokratik Mülakata Geç</span>
+            </button>
+          </form>
+        </div>
+
+        <div class="card info-card">
+          <h3>Emanet ve Hukuki Zırh Durumu</h3>
+          <div class="escrow-status-box" id="escrow-display">
+            <div class="status-badge" id="escrow-badge">BEKLEMEDE</div>
+            <div class="escrow-details">
+              <div><strong>Emanet Tutarı:</strong> $10.00 USD</div>
+              <div><strong>Stripe İade Garantisi:</strong> Otomatik (DDS &lt; 0.75)</div>
+              <div><strong>FSEK Sözleşme Hash:</strong> <code id="display-fsek-hash">—</code></div>
+              <div><strong>Fikir ID:</strong> <code id="display-idea-id">—</code></div>
+            </div>
+          </div>
+
+          <div class="anti-slop-notice">
+            <h4>🛡️ Syntropion Neden $10 Stake İstiyor?</h4>
+            <p>
+              Yapay zeka çağında internet "bunu yapalım zengin olalım" diyen milyonlarca yüzeysel fikirle doludur. 
+              $10 sembolik filtre, sadece sahadaki acıyı iliklerine kadar yaşayan gerçek profesyonellerin sisteme girmesini sağlar. 
+              Fikriniz onaylanmazsa paranız anında iade edilir.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PANEL 2: LIVE SOCRATIC AI INTERROGATOR -->
+    <div id="panel-socratic" class="workspace-panel">
+      <div class="panel-header">
+        <div class="panel-tag">ADIM 2 / KALİTE FİLTRESİ</div>
+        <h2>5 Adımlı Sokratik Derinlik Sorgulayıcısı (Proof-of-Domain-Depth)</h2>
+        <p class="panel-desc">
+          Yapay zeka jüri ajanımız, sahadaki pratik bilginizi 5 katmanda tartar. 
+          Kabul eşiği: <strong>DDS &gt;= 0.75</strong>. Yüzeysel yanıtlar elenir ve stake iade edilir.
+        </p>
+      </div>
+
+      <div class="socratic-container">
+        <div class="socratic-main">
+          <div class="step-indicator-bar" id="step-bar">
+            <div class="step-item active" data-step="1">1. Darboğaz &amp; Risk</div>
+            <div class="step-item" data-step="2">2. İstisnalar &amp; Uç Vakalar</div>
+            <div class="step-item" data-step="3">3. Yasal Mevzuat</div>
+            <div class="step-item" data-step="4">4. Veri Sözleşmesi</div>
+            <div class="step-item" data-step="5">5. B2B Fiyat &amp; ROI</div>
+          </div>
+
+          <div class="chat-viewport" id="chat-viewport">
+            <div class="chat-bubble ai">
+              <div class="sender">SYNTROPION SOCRATIC AGENT</div>
+              <div class="message" id="current-question-text">
+                Yükleniyor... Lütfen önce 1. Adımdan bir fikir sununuz veya hazır pilot mülakatını seçiniz.
+              </div>
+            </div>
+          </div>
+
+          <form id="socratic-form" class="chat-input-form">
+            <textarea id="socratic-input" placeholder="Sektörel terimler, somut rakamlar, kanun maddeleri ve istisnalarla ayrıntılı yanıtınızı yazınız..." rows="3" required></textarea>
+            <button type="submit" class="send-btn" id="btn-submit-step">Yanıtı Gönder &amp; Değerlendir</button>
+          </form>
+        </div>
+
+        <!-- Real-Time DDS Gauge Card -->
+        <div class="socratic-sidebar">
+          <div class="gauge-card">
+            <h3>DDS Skoru (Domain Depth Score)</h3>
+            <div class="gauge-display">
+              <div class="gauge-number" id="dds-score-num">0.00</div>
+              <div class="gauge-threshold">EŞİK: 0.75 / 1.00</div>
+            </div>
+            <div class="gauge-bar-track">
+              <div class="gauge-bar-fill" id="dds-gauge-fill" style="width: 0%;"></div>
+            </div>
+            <div class="gauge-verdict" id="dds-verdict">MÜLAKAT BAŞLAMADI</div>
+          </div>
+
+          <div class="eval-metrics-card">
+            <h4>Tespit Edilen Katmanlar</h4>
+            <div class="tag-group" id="detected-terms">
+              <span class="tag">Bekleniyor</span>
+            </div>
+
+            <h4>Mevzuat Zırhı</h4>
+            <div class="tag-group" id="detected-reg">
+              <span class="tag">Bekleniyor</span>
+            </div>
+
+            <h4>Tespit Edilen Uç Vakalar</h4>
+            <ul class="edge-case-list" id="detected-edges">
+              <li>Henüz veri girilmedi</li>
+            </ul>
+          </div>
+
+          <button class="secondary-btn" id="btn-synthesize-action" style="display:none;">
+            ⚡ Otonom Mikro-SaaS Kod Sentezini Başlat
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- PANEL 3: MICRO-SAAS COCKPIT & PILOTS -->
+    <div id="panel-cockpit" class="workspace-panel">
+      <div class="panel-header">
+        <div class="panel-tag">ADIM 3 / KÂR DAĞITIMI &amp; ÜRÜN ÇALIŞTIRMA</div>
+        <h2>Mikro-SaaS Portföyü, Canlı Pilot Motorları ve Şeffaf Kâr Dağıtımı</h2>
+        <p class="panel-desc">
+          Tek çekirdek üzerine monte edilmiş dikey SaaS'lar. Fikir sahipleri 5M token Fair-Use ile ömür boyu ücretsiz kullanır;
+          dış satışlardan %20 net pay doğrudan Stripe Connect hesabına aktarılır.
+        </p>
+      </div>
+
+      <!-- 5 Deep Vertical Pilots Interactive Sandbox -->
+      <div class="card pilot-card">
+        <div class="pilot-header">
+          <h3>🚀 Canlı Sektörel Pilot Motorları Test Sahası</h3>
+          <div class="pilot-tabs">
+            <button class="pilot-tab active" data-pilot="radtrack">RadTrack AI (Sağlık)</button>
+            <button class="pilot-tab" data-pilot="lexnotice">LexNotice AI (Hukuk)</button>
+            <button class="pilot-tab" data-pilot="taxcross">TaxCrossAudit (Maliye)</button>
+            <button class="pilot-tab" data-pilot="tarifa">TarifaCustoms (Gümrük)</button>
+            <button class="pilot-tab" data-pilot="demurrage">DemurrageShield (Lojistik)</button>
+          </div>
+        </div>
+
+        <div class="pilot-sandbox-content" id="pilot-sandbox">
+          <!-- Dynamic pilot forms will render here via app.js -->
+        </div>
+      </div>
+
+      <!-- Portfolio Table -->
+      <div class="card table-card">
+        <h3>Aktif Portföy ve Aylık Kâr Dağıtım İcrası</h3>
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Girişim Adı</th>
+                <th>Sektör / Slug</th>
+                <th>Durum</th>
+                <th>Aylık Ciro (MRR)</th>
+                <th>Uzman Kâr Payı (%20)</th>
+                <th>Hazine (%75)</th>
+                <th>İşlem</th>
+              </tr>
+            </thead>
+            <tbody id="ventures-table-body">
+              <tr><td colspan="7" class="center-text">Yükleniyor...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="footer-container">
+      <div class="footer-left">
+        <strong>SYNTROPION OS</strong> — 5846 FSEK, 6102 TTK, 6698 KVKK ve 2 Ağustos 2026 EU AI Act Uyumlu Egemen Girişim Fabrikası.
+      </div>
+      <div class="footer-right">
+        Zero-Copy POSIX SHM IPC: <code>/dev/shm/syntropion_treasury_ipc</code>
+      </div>
+    </div>
+  </footer>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

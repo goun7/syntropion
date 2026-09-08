@@ -1,0 +1,10 @@
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+*.db-journal
+*.db-wal
+*.db-shm
+.fallback_shm_ipc.bin

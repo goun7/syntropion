@@ -1,0 +1,28 @@
+version: "3.8"
+
+services:
+  syntropion-os:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: syntropion_foundry_os
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - SYNAPSE_ENV=production
+      - SYNTROPION_DB_PATH=/app/data/syntropion.db
+      - SYNTROPION_SECRET_KEY=syntropion-prod-sovereign-master-token-2026
+      - SHM_IPC_PATH=/dev/shm/syntropion_treasury_ipc
+    volumes:
+      - syntropion_data:/app/data
+      - /dev/shm:/dev/shm
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  syntropion_data:
+    driver: local
