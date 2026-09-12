@@ -86,3 +86,152 @@ def test_api_shared_memory_telemetry_endpoint():
     res = client.get("/api/v1/revenue/telemetry/latest")
     assert res.status_code == 200
     assert "latest_shm_packet" in res.json()
+
+
+def test_api_new_expert_proposal_submission():
+    import uuid
+    unique_email = f"expert_{uuid.uuid4().hex[:8]}@industry.com"
+    res = client.post(
+        "/api/v1/proposals/submit",
+        json={
+            "expert": {
+                "email": unique_email,
+                "full_name": "Dr. Ayşe Yılmaz",
+                "phone_number": "+90 532 111 2233",
+                "industry_domain": "Healthcare Oncology",
+                "years_of_experience": 14,
+                "iban": "TR330006100511123456789012",
+                "ip_assignment_signed": True,
+                "fsek_terms_version": "v1.0"
+            },
+            "title": "Onkoloji Otomasyonu",
+            "problem_statement": "Lezyon takipleri manuel yapılmaktadır.",
+            "target_audience": "Onkologlar",
+            "current_workaround": "Excel tablosu",
+            "stake_amount_usd": 10.0
+        }
+    )
+    assert res.status_code == 201
+    data = res.json()
+    assert data["status"] == "SUCCESS"
+    assert data["amount_held_usd"] == 10.0
+
+
+def test_api_venture_synthesis_flow():
+    # Attempting to synthesize unapproved idea raises 400
+    res_bad = client.post(
+        "/api/v1/ventures/synthesize",
+        json={"idea_id": "non-existent-idea-404"}
+    )
+    assert res_bad.status_code == 400
+
+    # Insert an approved idea
+    import uuid
+    from syntropion_core.database import get_current_iso_time
+    now = get_current_iso_time()
+    approved_idea_id = f"idea-approved-{uuid.uuid4().hex[:6]}"
+    expert_id = f"exp-test-{uuid.uuid4().hex[:6]}"
+
+    db.execute(
+        "INSERT INTO domain_experts (expert_id, email, full_name, industry_domain, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+        (expert_id, f"synth_{uuid.uuid4().hex[:6]}@domain.com", "Synth Expert", "Customs", now, now)
+    )
+    db.execute(
+        """
+        INSERT INTO domain_ideas (
+            idea_id, expert_id, title, problem_statement, target_audience,
+            status, created_at, updated_at
+        ) VALUES (?, ?, 'Gümrük Otomasyonu', 'Beyanname takibi zordur', 'Gümrük Müşavirleri', 'APPROVED_FOR_SYNTHESIS', ?, ?)
+        """,
+        (approved_idea_id, expert_id, now, now)
+    )
+
+    res_ok = client.post(
+        "/api/v1/ventures/synthesize",
+        json={"idea_id": approved_idea_id, "target_slug": f"custom-synth-{uuid.uuid4().hex[:6]}"}
+    )
+    assert res_ok.status_code == 200
+    assert "fastapi_router_code" in res_ok.json()
+
+
+def test_api_vesting_and_quota_endpoints():
+    venture = db.fetchone("SELECT * FROM ventures LIMIT 1")
+    assert venture is not None
+    venture_id = venture["venture_id"]
+    idea = db.fetchone("SELECT * FROM domain_ideas WHERE idea_id = ?", (venture["idea_id"],))
+    assert idea is not None
+    expert_id = idea["expert_id"]
+
+    # Vesting status
+    vesting_res = client.get(f"/api/v1/vesting/{venture_id}/{expert_id}")
+    assert vesting_res.status_code == 200
+
+    # Vesting unlock error (non-existent venture triggers 400 ValueError)
+    bad_unlock = client.post(
+        "/api/v1/vesting/unlock",
+        json={"venture_id": "ven-non-existent-999", "expert_id": expert_id, "tier": 1}
+    )
+    assert bad_unlock.status_code == 400
+
+    # Quota check
+    quota_res = client.get(f"/api/v1/quotas/{expert_id}/{venture_id}")
+    assert quota_res.status_code == 200
+    assert quota_res.json()["free_token_limit"] == 5_000_000
+
+    # Quota consume
+    consume_res = client.post(
+        "/api/v1/quotas/consume",
+        json={"expert_id": expert_id, "venture_id": venture_id, "tokens_requested": 15000}
+    )
+    assert consume_res.status_code == 200
+    assert consume_res.json()["used_tokens"] >= 15000
+
+    # Quota consume invalid negative tokens rejected by schema
+    bad_consume = client.post(
+        "/api/v1/quotas/consume",
+        json={"expert_id": expert_id, "venture_id": venture_id, "tokens_requested": -500}
+    )
+    assert bad_consume.status_code == 422
+
+
+def test_api_revenue_endpoints_and_history():
+    venture_id = "ven-pilot-001-radtrack"
+    # History
+    hist_res = client.get(f"/api/v1/revenue/history/{venture_id}")
+    assert hist_res.status_code == 200
+    assert isinstance(hist_res.json(), list)
+
+    # Calculate for non-existent venture triggers 400 ValueError
+    bad_rev = client.post(
+        "/api/v1/revenue/calculate",
+        json={
+            "venture_id": "ven-non-existent-999",
+            "billing_period": "2026-09",
+            "gross_revenue_usd": 1000.0,
+            "infra_costs_usd": 100.0
+        }
+    )
+    assert bad_rev.status_code == 400
+
+
+def test_api_pilots_error_handling():
+    # RadTrack baseline <= 0
+    bad_rad = client.post("/api/v1/pilots/radtrack", json={"baseline_mm": 0.0, "follow_up_mm": 10.0})
+    assert bad_rad.status_code == 400
+
+    # LexNotice invalid date
+    bad_lex = client.post("/api/v1/pilots/lexnotice", json={
+        "delivery_date": "not-a-date", "current_date": "2026-09-03", "invoice_amount_try": 1000.0
+    })
+    assert bad_lex.status_code == 400
+
+    # Demurrage invalid date
+    bad_dem = client.post("/api/v1/pilots/demurrage", json={
+        "discharge_date": "invalid-date", "gate_out_date": "2026-09-08", "free_time_days": 7
+    })
+    assert bad_dem.status_code == 400
+
+
+def test_api_root_index_serving():
+    res = client.get("/")
+    assert res.status_code == 200

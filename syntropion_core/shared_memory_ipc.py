@@ -9,6 +9,7 @@ import mmap
 import struct
 import time
 import hashlib
+import fcntl
 from typing import Dict, Any, Optional
 
 SHM_PATH = os.environ.get("SHM_IPC_PATH", "/dev/shm/syntropion_treasury_ipc")
@@ -53,8 +54,8 @@ class SharedMemoryIPCBridge:
         net_profit_usd: float,
         treasury_usd: float
     ) -> bool:
-        """Packs and writes binary revenue telemetry packet into shared memory slot 0."""
-        if not self._mmap_obj:
+        """Packs and writes binary revenue telemetry packet into shared memory slot 0 with atomic flock."""
+        if not self._mmap_obj or not self._file_obj:
             return False
 
         try:
@@ -73,21 +74,32 @@ class SharedMemoryIPCBridge:
                 chksum
             )
 
-            self._mmap_obj.seek(0)
-            self._mmap_obj.write(packet)
-            self._mmap_obj.flush()
+            # Atomic exclusive flock
+            fcntl.flock(self._file_obj.fileno(), fcntl.LOCK_EX)
+            try:
+                self._mmap_obj.seek(0)
+                self._mmap_obj.write(packet)
+                self._mmap_obj.flush()
+            finally:
+                fcntl.flock(self._file_obj.fileno(), fcntl.LOCK_UN)
+
             return True
         except Exception:
             return False
 
     def read_latest_telemetry(self) -> Optional[Dict[str, Any]]:
-        """Reads and unpacks the latest packet from the shared memory buffer."""
-        if not self._mmap_obj:
+        """Reads and unpacks the latest packet from the shared memory buffer with shared flock."""
+        if not self._mmap_obj or not self._file_obj:
             return None
 
         try:
-            self._mmap_obj.seek(0)
-            raw = self._mmap_obj.read(PACKET_SIZE)
+            fcntl.flock(self._file_obj.fileno(), fcntl.LOCK_SH)
+            try:
+                self._mmap_obj.seek(0)
+                raw = self._mmap_obj.read(PACKET_SIZE)
+            finally:
+                fcntl.flock(self._file_obj.fileno(), fcntl.LOCK_UN)
+
             if not raw or raw == b"\x00" * PACKET_SIZE:
                 return None
 

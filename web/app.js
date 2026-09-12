@@ -13,6 +13,7 @@ document.addEventListener("DOMContentLoaded", () => {
   initProposalForm();
   initSocraticChat();
   initPilotSandbox();
+  initCircuitBreaker();
 });
 
 // --- 1. Tab Navigation ---
@@ -448,3 +449,74 @@ window.executeManualSplit = async function(ventureId, currentMrr) {
     alert("Hata: " + err.message);
   }
 };
+
+// --- 7. Circuit Breaker & Safe Mode Telemetry ---
+function initCircuitBreaker() {
+  const badge = document.getElementById("circuit-badge");
+  const statusText = document.getElementById("circuit-status-text");
+  const btnKillSwitch = document.getElementById("btn-kill-switch");
+
+  if (!badge || !statusText || !btnKillSwitch) return;
+
+  async function updateStatus() {
+    try {
+      const res = await fetch("/api/v1/system/circuit-breaker");
+      if (!res.ok) return;
+      const data = await res.json();
+
+      if (data.kill_switch_active || data.state === "OPEN") {
+        badge.classList.add("safe-mode");
+        statusText.textContent = data.kill_switch_active 
+          ? `GÜVENLİ KAPATMA (${data.kill_switch_reason || 'Manuel'})`
+          : `KESİCİ AÇIK (%${data.recent_failure_rate_pct} Hata)`;
+        btnKillSwitch.textContent = "🟢 Devam Et";
+        btnKillSwitch.style.background = "rgba(16, 185, 129, 0.25)";
+        btnKillSwitch.style.borderColor = "rgba(16, 185, 129, 0.5)";
+        btnKillSwitch.style.color = "#a7f3d0";
+      } else if (data.state === "HALF_OPEN") {
+        badge.classList.remove("safe-mode");
+        statusText.textContent = "KESİCİ: TEST MODU (HALF-OPEN)";
+        btnKillSwitch.textContent = "🛑 Safe Stop";
+      } else {
+        badge.classList.remove("safe-mode");
+        statusText.textContent = "KESİCİ: KAPALI (NORMAL)";
+        btnKillSwitch.textContent = "🛑 Safe Stop";
+        btnKillSwitch.style.background = "";
+        btnKillSwitch.style.borderColor = "";
+        btnKillSwitch.style.color = "";
+      }
+    } catch (e) {
+      console.warn("Circuit status error:", e);
+    }
+  }
+
+  btnKillSwitch.addEventListener("click", async () => {
+    try {
+      const isSafeMode = badge.classList.contains("safe-mode");
+      if (isSafeMode) {
+        // Deactivate
+        const res = await fetch("/api/v1/system/kill-switch/deactivate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ operator: "operator@syntropion.org" })
+        });
+        if (res.ok) updateStatus();
+      } else {
+        // Activate emergency stop
+        const reason = prompt("Acil durum güvenli kapatma gerekçesini giriniz:", "Operatör Güvenli Duruşu");
+        if (!reason) return;
+        const res = await fetch("/api/v1/system/kill-switch", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ operator: "operator@syntropion.org", reason })
+        });
+        if (res.ok) updateStatus();
+      }
+    } catch (err) {
+      alert("Hata: " + err.message);
+    }
+  });
+
+  updateStatus();
+  setInterval(updateStatus, 5000);
+}

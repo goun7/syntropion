@@ -4,17 +4,17 @@ Manages the 5,000,000 free tokens/month allowance for lifetime enterprise licens
 Tracks usage, alerts at 80% & 100%, and meters at-cost overflow at $0.0005 per 1k tokens.
 """
 
-import uuid
+from decimal import Decimal, ROUND_HALF_UP
 from typing import Dict, Any, Tuple
 from datetime import datetime, timezone
 from syntropion_core.database import db, get_current_iso_time
 
 
 class QuotaGovernor:
-    """Enforces fair-use token allocation to prevent abusive runaway LLM costs."""
+    """Enforces fair-use token allocation to prevent abusive runaway LLM costs with Decimal precision."""
 
     FREE_MONTHLY_LIMIT = 5_000_000
-    OVERFLOW_PRICE_PER_1K_TOKENS = 0.0005  # $0.50 per 1M tokens at-cost pass-through
+    OVERFLOW_PRICE_PER_1K_TOKENS = Decimal("0.0005")  # $0.50 per 1M tokens at-cost pass-through
 
     def _get_or_create_quota_record(self, expert_id: str, venture_id: str) -> Dict[str, Any]:
         """Fetches or initializes the quota record for the current month."""
@@ -56,7 +56,7 @@ class QuotaGovernor:
 
         now = get_current_iso_time()
         overflow_add = 0
-        overflow_cost_add = 0.0
+        overflow_cost_dec = Decimal("0.0000")
 
         if new_total <= limit:
             # Entirely within free limit
@@ -67,7 +67,7 @@ class QuotaGovernor:
         else:
             # Spilled into overflow
             overflow_add = new_total - max(limit, current_used)
-            overflow_cost_add = round((overflow_add / 1000.0) * self.OVERFLOW_PRICE_PER_1K_TOKENS, 4)
+            overflow_cost_dec = ((Decimal(str(overflow_add)) / Decimal("1000")) * self.OVERFLOW_PRICE_PER_1K_TOKENS).quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
             db.execute(
                 """
                 UPDATE token_quotas
@@ -77,7 +77,7 @@ class QuotaGovernor:
                     updated_at = ?
                 WHERE quota_id = ?
                 """,
-                (new_total, overflow_add, overflow_cost_add, now, record["quota_id"])
+                (new_total, overflow_add, float(overflow_cost_dec), now, record["quota_id"])
             )
 
         updated = db.fetchone("SELECT * FROM token_quotas WHERE quota_id = ?", (record["quota_id"],))

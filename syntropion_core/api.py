@@ -5,6 +5,7 @@ Single-Core Microkernel Router orchestrating Proposals, Socratic Steps, Synthesi
 
 import os
 import uuid
+import logging
 from typing import Dict, Any, List, Optional
 from fastapi import FastAPI, HTTPException, Request, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,6 +13,7 @@ from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+logger = logging.getLogger("syntropion.api")
 from syntropion_core.database import db, get_current_iso_time
 from syntropion_core.schemas import (
     ProposalSubmitRequest, ProposalSubmitResponse,
@@ -35,6 +37,18 @@ from syntropion_core.quota_governor import quota_governor
 from syntropion_core.revenue_router import revenue_router
 from syntropion_core.shared_memory_ipc import shm_ipc_bridge
 from syntropion_core.gtm_swarm import gtm_swarm
+from syntropion_core.circuit_breaker import circuit_breaker
+from syntropion_core.plugin_loader import plugin_manager
+
+class KillSwitchRequest(BaseModel):
+    operator: str
+    reason: str
+
+class KillSwitchDeactivateRequest(BaseModel):
+    operator: str
+
+class PluginExecuteRequest(BaseModel):
+    payload: Dict[str, Any]
 
 app = FastAPI(
     title="SYNTROPION OS API",
@@ -44,6 +58,9 @@ app = FastAPI(
     redoc_url="/api/redoc"
 )
 
+# Connect FastAPI app to DynamicPluginManager
+plugin_manager.set_app(app)
+
 # CORS middleware for Web Cockpit
 app.add_middleware(
     CORSMiddleware,
@@ -52,6 +69,33 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.middleware("http")
+async def circuit_breaker_guard(request: Request, call_next):
+    """Zero-Panic Guard: Blocks mutative pathways when Circuit Breaker is OPEN or Kill Switch is active."""
+    exempt_paths = {
+        "/healthz",
+        "/metrics",
+        "/api/docs",
+        "/api/redoc",
+        "/docs",
+        "/openapi.json",
+        "/",
+        "/api/v1/system/circuit-breaker",
+        "/api/v1/system/kill-switch",
+        "/api/v1/system/kill-switch/deactivate"
+    }
+    path = request.url.path
+    if path not in exempt_paths and not path.startswith("/static"):
+        if not circuit_breaker.is_operational():
+            return JSONResponse(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                content={
+                    "detail": "SYNTROPION OS Safe Mode active (Circuit Breaker tripped or Kill-Switch engaged).",
+                    "circuit_breaker": circuit_breaker.get_status()
+                }
+            )
+    return await call_next(request)
 
 WEB_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "web")
 if os.path.exists(WEB_DIR):
@@ -95,6 +139,36 @@ async def system_metrics() -> Dict[str, Any]:
         "total_expert_rev_share_paid_usd": round(expert_payouts, 2),
         "total_treasury_accumulated_usd": round(treasury_transfers, 2),
         "timestamp": get_current_iso_time()
+    }
+
+
+# --- Safe Shutdown & Circuit Breaker Endpoints ---
+
+@app.get("/api/v1/system/circuit-breaker")
+async def get_circuit_breaker_status() -> Dict[str, Any]:
+    """Returns real-time telemetry of the adaptive circuit breaker."""
+    return circuit_breaker.get_status()
+
+
+@app.post("/api/v1/system/kill-switch")
+async def trigger_emergency_kill_switch(payload: KillSwitchRequest) -> Dict[str, Any]:
+    """Manually forces immediate full Safe Shutdown / Emergency Stop."""
+    circuit_breaker.activate_kill_switch(operator=payload.operator, reason=payload.reason)
+    return {
+        "status": "KILL_SWITCH_ENGAGED",
+        "detail": "Emergency stop active. All mutation and worker pathways are halted.",
+        "circuit_breaker": circuit_breaker.get_status()
+    }
+
+
+@app.post("/api/v1/system/kill-switch/deactivate")
+async def restore_emergency_kill_switch(payload: KillSwitchDeactivateRequest) -> Dict[str, Any]:
+    """Deactivates manual kill-switch and restores operational status."""
+    circuit_breaker.deactivate_kill_switch(operator=payload.operator)
+    return {
+        "status": "KILL_SWITCH_DEACTIVATED",
+        "detail": "System returned to operational state.",
+        "circuit_breaker": circuit_breaker.get_status()
     }
 
 
@@ -228,8 +302,17 @@ async def synthesize_venture_code(payload: VentureSynthesizeRequest) -> Dict[str
         # Initialize milestone vesting tiers
         idea = db.fetchone("SELECT expert_id FROM domain_ideas WHERE idea_id = ?", (payload.idea_id,))
         vesting_engine.initialize_venture_vestings(res["venture_id"], idea["expert_id"])
+
+        # Dynamically mount synthesized router into live FastAPI kernel
+        try:
+            plugin_manager.load_plugin_from_code(res["code_slug"], res["fastapi_router_code"])
+        except Exception as pe:
+            logger.warning(f"Could not auto-mount plugin {res['code_slug']}: {pe}")
+
+        circuit_breaker.record_call(success=True)
         return res
     except ValueError as e:
+        circuit_breaker.record_call(success=False, error_msg=str(e))
         raise HTTPException(status_code=400, detail=str(e))
 
 
@@ -248,6 +331,34 @@ async def get_venture_details(venture_id: str) -> Dict[str, Any]:
     vestings = db.fetchall("SELECT * FROM milestone_vestings WHERE venture_id = ?", (venture_id,))
     distributions = db.fetchall("SELECT * FROM revenue_distributions WHERE venture_id = ? ORDER BY billing_period DESC", (venture_id,))
     return {"venture": venture, "vestings": vestings, "distributions": distributions}
+
+
+@app.post("/api/v1/ventures/{venture_id}/mount")
+async def mount_venture_plugin(venture_id: str) -> Dict[str, Any]:
+    """Dynamically compiles and mounts micro-SaaS routes to live FastAPI kernel."""
+    try:
+        return plugin_manager.mount_venture_by_id(venture_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@app.post("/api/v1/ventures/{venture_id}/execute")
+async def execute_venture_plugin(venture_id: str, req: PluginExecuteRequest) -> Dict[str, Any]:
+    """Executes a micro-SaaS plugin with given payload."""
+    try:
+        return plugin_manager.execute_plugin_direct(venture_id, req.payload)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@app.get("/api/v1/plugins/loaded")
+async def list_loaded_plugins() -> Dict[str, Any]:
+    """Returns list of currently hot-mounted plugins."""
+    loaded = plugin_manager.get_loaded_plugins()
+    return {
+        "loaded_plugins": loaded,
+        "count": len(loaded)
+    }
 
 
 # --- Gamified Milestone Vesting Endpoints ---

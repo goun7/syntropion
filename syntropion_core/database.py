@@ -28,26 +28,46 @@ class DatabaseManager:
         self._ensure_schema()
 
     def get_connection(self) -> sqlite3.Connection:
-        """Create and configure a connection with WAL and Row factory."""
-        conn = sqlite3.connect(self.db_path, timeout=30.0, check_same_thread=False)
+        """Create and configure a connection with WAL, 60s busy timeout, and Row factory."""
+        conn = sqlite3.connect(self.db_path, timeout=60.0, check_same_thread=False)
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA journal_mode = WAL;")
         conn.execute("PRAGMA foreign_keys = ON;")
         conn.execute("PRAGMA synchronous = NORMAL;")
+        conn.execute("PRAGMA busy_timeout = 60000;")  # 60s busy timeout (Mergen #3990)
         return conn
 
     @contextmanager
     def transaction(self) -> Generator[sqlite3.Connection, None, None]:
-        """Context manager for atomic transactions."""
-        conn = self.get_connection()
-        try:
-            yield conn
-            conn.commit()
-        except Exception:
-            conn.rollback()
-            raise
-        finally:
-            conn.close()
+        """Context manager for atomic transactions with exponential backoff retry on lock."""
+        import time
+        max_retries = 3
+        backoff = 0.05
+
+        for attempt in range(1, max_retries + 1):
+            conn = self.get_connection()
+            try:
+                yield conn
+                conn.commit()
+                conn.close()
+                return
+            except sqlite3.OperationalError as e:
+                conn.rollback()
+                conn.close()
+                if "locked" in str(e).lower() and attempt < max_retries:
+                    time.sleep(backoff)
+                    backoff *= 2
+                else:
+                    raise
+            except Exception:
+                conn.rollback()
+                conn.close()
+                raise
+
+    def checkpoint_wal(self) -> None:
+        """Truncates WAL journal file to prevent unbounded growth."""
+        with self.transaction() as conn:
+            conn.execute("PRAGMA wal_checkpoint(TRUNCATE);")
 
     def _ensure_schema(self) -> None:
         """Executes schema.sql if database is not initialized."""

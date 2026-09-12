@@ -65,3 +65,11 @@ def test_seed_pilots_execution(test_db):
     assert len(ventures) == 5
     mrr_total = sum(v["current_monthly_mrr_usd"] for v in ventures)
     assert mrr_total > 40000.00
+
+
+def test_checkpoint_wal(test_db):
+    """Verifies PRAGMA wal_checkpoint truncation executes cleanly."""
+    test_db.checkpoint_wal()
+    # Ensure database is still queryable
+    row = test_db.fetchone("SELECT COUNT(*) as cnt FROM ventures")
+    assert row["cnt"] >= 0

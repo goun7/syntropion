@@ -4,24 +4,26 @@ Controls the $10 anti-spam financial commitment, authorization holds, and automa
 """
 
 import uuid
+from decimal import Decimal, ROUND_HALF_UP
 from typing import Dict, Any, Optional
 from datetime import datetime, timezone
 from syntropion_core.database import db, get_current_iso_time
 
 
 class StakeGate:
-    """Manages the $10 financial stake escrow to eliminate non-serious spam ideas."""
+    """Manages the $10 financial stake escrow to eliminate non-serious spam ideas with Decimal precision."""
 
-    DEFAULT_STAKE_USD = 10.00
+    DEFAULT_STAKE_USD = Decimal("10.00")
 
     def hold_stake_in_escrow(
         self,
         idea_id: str,
         expert_id: str,
-        amount_usd: float = DEFAULT_STAKE_USD,
+        amount_usd: Any = Decimal("10.00"),
         payment_method_id: str = "pm_card_mock"
     ) -> Dict[str, Any]:
         """Places the $10 stake in an escrow hold state."""
+        stake_dec = Decimal(str(amount_usd)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
         charge_id = f"ch_mock_escrow_{uuid.uuid4().hex[:12]}"
         now = get_current_iso_time()
 
@@ -34,19 +36,19 @@ class StakeGate:
                 updated_at = ?
             WHERE idea_id = ?
             """,
-            (amount_usd, charge_id, now, idea_id)
+            (float(stake_dec), charge_id, now, idea_id)
         )
 
         db.log_audit_event(
             event_type="STAKE_ESCROW_HELD",
             actor=expert_id,
-            payload={"idea_id": idea_id, "amount_usd": amount_usd, "charge_id": charge_id}
+            payload={"idea_id": idea_id, "amount_usd": str(stake_dec), "charge_id": charge_id}
         )
 
         return {
             "idea_id": idea_id,
             "status": "HELD_IN_ESCROW",
-            "amount_usd": amount_usd,
+            "amount_usd": float(stake_dec),
             "charge_id": charge_id,
             "escrow_timestamp": now
         }

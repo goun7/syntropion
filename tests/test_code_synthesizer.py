@@ -120,3 +120,22 @@ def test_pilot_demurrage_shield():
     res_penalty = pilot_engines.execute_demurrage_calculation("2026-09-01", "2026-09-11", 7, 180.0)
     assert res_penalty["billable_demurrage_days"] == 3
     assert res_penalty["total_demurrage_usd"] == 540.0
+
+
+def test_code_synthesizer_error_cases():
+    with pytest.raises(ValueError, match="Idea not found"):
+        code_synthesizer.generate_plugin_spec("non-existent-idea-404")
+
+    with pytest.raises(ValueError, match="Idea not found"):
+        code_synthesizer.synthesize_venture("non-existent-idea-404")
+
+    # RadTrack edge cases: baseline <= 0, and Stable Disease classification
+    with pytest.raises(ValueError, match="Baseline lesion diameter must be greater than 0"):
+        pilot_engines.execute_radtrack_recist(0.0, 10.0)
+
+    sd_res = pilot_engines.execute_radtrack_recist(20.0, 21.0)
+    assert "SD" in sd_res["recist_classification"]
+
+    # Tarifa customs fallback
+    fallback_res = pilot_engines.execute_tarifa_customs_gtip("Bilinmeyen elektronik devre kartı", "US")
+    assert fallback_res["determined_gtip_12_digit"] == "8471.30.00.00.00"
