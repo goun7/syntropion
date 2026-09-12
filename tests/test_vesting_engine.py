@@ -45,3 +45,7 @@ def test_milestone_vesting_unlock_flow():
     status = vesting_engine.get_expert_vesting_status(venture_id, expert_id)
     assert status["unlocked_rev_share_pct"] == 20.00
     assert status["lifetime_license_key"] is not None
+
+    # Invalid tier raises ValueError
+    with pytest.raises(ValueError, match="Invalid milestone tier"):
+        vesting_engine.unlock_milestone(venture_id, expert_id, 99)

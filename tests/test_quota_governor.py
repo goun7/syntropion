@@ -36,16 +36,21 @@ def test_token_quota_within_free_limit():
 def test_token_quota_warning_at_80_percent():
     expert_id = "exp-pilot-002-lawyer"
     venture_id = "ven-pilot-003-taxcross"
+    db.execute("DELETE FROM token_quotas WHERE expert_id = ? AND venture_id = ?", (expert_id, venture_id))
 
     # Consume 4,200,000 tokens (84% of 5M)
     updated = quota_governor.consume_tokens(expert_id, venture_id, 4_200_000)
     assert updated["usage_ratio_pct"] >= 80.0
-    assert updated["alert_level"] in ["WARNING_80_PCT", "DEPLETED_100_PCT"]
+    assert updated["alert_level"] == "WARNING_80_PCT"
+
+    status = quota_governor.get_status(expert_id, venture_id)
+    assert status["alert_level"] == "WARNING_80_PCT"
 
 
 def test_token_quota_overflow_billing():
     expert_id = "exp-pilot-003-accountant"
     venture_id = "ven-pilot-004-tarifa"
+    db.execute("DELETE FROM token_quotas WHERE expert_id = ? AND venture_id = ?", (expert_id, venture_id))
 
     # Consume 5,500,000 tokens (500k overflow)
     updated = quota_governor.consume_tokens(expert_id, venture_id, 5_500_000)
@@ -54,3 +59,11 @@ def test_token_quota_overflow_billing():
     assert updated["overflow_tokens"] > 0
     assert updated["overflow_billed_usd"] > 0
     assert updated["alert_level"] == "DEPLETED_100_PCT"
+
+    # Status check confirms DEPLETED_100_PCT
+    status = quota_governor.get_status(expert_id, venture_id)
+    assert status["alert_level"] == "DEPLETED_100_PCT"
+
+    # Non-positive count raises ValueError
+    with pytest.raises(ValueError, match="Token count to consume must be positive"):
+        quota_governor.consume_tokens(expert_id, venture_id, 0)

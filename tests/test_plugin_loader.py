@@ -92,3 +92,18 @@ def test_mount_nonexistent_venture_raises_error():
 
     with pytest.raises(ValueError, match="not found in database"):
         manager.execute_plugin_direct("non-existent-slug-999", {})
+
+
+def test_execute_plugin_direct_unmounted_triggers_autoload():
+    venture = db.fetchone("SELECT * FROM ventures LIMIT 1")
+    assert venture is not None
+
+    manager = DynamicPluginManager()
+    # Confirm it is not loaded yet
+    assert venture["code_slug"] not in manager.get_loaded_plugins()
+
+    # Direct execution must auto-compile and load
+    res = manager.execute_plugin_direct(venture["code_slug"], {"field1": 10, "field2": 20})
+    assert res["status"] == "COMPLETED"
+    assert res["processed_fields"] == 2
+    assert venture["code_slug"] in manager.get_loaded_plugins()

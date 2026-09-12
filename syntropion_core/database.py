@@ -39,18 +39,33 @@ class DatabaseManager:
 
     @contextmanager
     def transaction(self) -> Generator[sqlite3.Connection, None, None]:
-        """Context manager for atomic transactions with exponential backoff retry on lock."""
-        import time
-        max_retries = 3
-        backoff = 0.05
+        """Context manager for an atomic database transaction with automatic commit/rollback."""
+        conn = self.get_connection()
+        try:
+            yield conn
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
 
+    def run_transaction(
+        self,
+        callback: Any,
+        max_retries: int = 3,
+        initial_backoff: float = 0.05
+    ) -> Any:
+        """Executes a transactional callback with exponential backoff retry on database locked errors (Mergen #3990)."""
+        import time
+        backoff = initial_backoff
         for attempt in range(1, max_retries + 1):
             conn = self.get_connection()
             try:
-                yield conn
+                result = callback(conn)
                 conn.commit()
                 conn.close()
-                return
+                return result
             except sqlite3.OperationalError as e:
                 conn.rollback()
                 conn.close()
@@ -66,40 +81,41 @@ class DatabaseManager:
 
     def checkpoint_wal(self) -> None:
         """Truncates WAL journal file to prevent unbounded growth."""
-        with self.transaction() as conn:
-            conn.execute("PRAGMA wal_checkpoint(TRUNCATE);")
+        self.run_transaction(lambda conn: conn.execute("PRAGMA wal_checkpoint(TRUNCATE);"))
 
     def _ensure_schema(self) -> None:
         """Executes schema.sql if database is not initialized."""
         if os.path.exists(SCHEMA_SQL_PATH):
             with open(SCHEMA_SQL_PATH, "r", encoding="utf-8") as f:
                 schema_ddl = f.read()
-            with self.transaction() as conn:
-                conn.executescript(schema_ddl)
+            self.run_transaction(lambda conn: conn.executescript(schema_ddl))
 
     def execute(self, query: str, params: tuple = ()) -> int:
-        """Executes an INSERT/UPDATE/DELETE query and returns rowcount."""
-        with self.transaction() as conn:
+        """Executes an INSERT/UPDATE/DELETE query and returns rowcount with retry on lock."""
+        def _op(conn: sqlite3.Connection) -> int:
             cur = conn.execute(query, params)
             return cur.rowcount
+        return self.run_transaction(_op)
 
     def fetchone(self, query: str, params: tuple = ()) -> Optional[Dict[str, Any]]:
-        """Executes a SELECT query and returns a single row as dict."""
-        with self.transaction() as conn:
+        """Executes a SELECT query and returns a single row as dict with retry on lock."""
+        def _op(conn: sqlite3.Connection) -> Optional[Dict[str, Any]]:
             cur = conn.execute(query, params)
             row = cur.fetchone()
             return dict(row) if row else None
+        return self.run_transaction(_op)
 
     def fetchall(self, query: str, params: tuple = ()) -> List[Dict[str, Any]]:
-        """Executes a SELECT query and returns all matching rows as dicts."""
-        with self.transaction() as conn:
+        """Executes a SELECT query and returns all matching rows as dicts with retry on lock."""
+        def _op(conn: sqlite3.Connection) -> List[Dict[str, Any]]:
             cur = conn.execute(query, params)
             rows = cur.fetchall()
             return [dict(r) for r in rows]
+        return self.run_transaction(_op)
 
     def log_audit_event(self, event_type: str, actor: str, payload: dict) -> str:
-        """Appends an event to the immutable Merkle hash chain audit ledger."""
-        with self.transaction() as conn:
+        """Appends an event to the immutable Merkle hash chain audit ledger with retry."""
+        def _op(conn: sqlite3.Connection) -> str:
             last_row = conn.execute(
                 "SELECT current_hash FROM audit_ledger ORDER BY id DESC LIMIT 1"
             ).fetchone()
@@ -118,6 +134,8 @@ class DatabaseManager:
                 (event_type, actor, payload_str, ts, prev_hash, curr_hash)
             )
             return curr_hash
+
+        return self.run_transaction(_op)
 
     def seed_deep_vertical_pilots(self) -> None:
         """Seeds the 5 deep vertical pilots defined in Chapter 23 of Fikir.md."""
@@ -252,12 +270,16 @@ class DatabaseManager:
             # 3. Venture
             self.execute(
                 """
-                INSERT OR IGNORE INTO ventures (
+                INSERT INTO ventures (
                     venture_id, idea_id, code_slug, display_name, tagline,
                     docker_container_name, git_commit_sha, api_prefix_path, status,
                     target_monthly_mrr_usd, current_monthly_mrr_usd, active_b2b_subscribers,
                     created_at, updated_at
                 ) VALUES (?, ?, ?, ?, ?, ?, 'git-prod-c0ffee2026', ?, 'PRODUCTION_LIVE', 10000.00, ?, ?, ?, ?)
+                ON CONFLICT(venture_id) DO UPDATE SET
+                    current_monthly_mrr_usd = excluded.current_monthly_mrr_usd,
+                    active_b2b_subscribers = excluded.active_b2b_subscribers,
+                    status = excluded.status
                 """,
                 (p["venture_id"], p["idea_id"], p["code_slug"], p["display_name"], p["tagline"],
                  f"syntropion-{p['code_slug']}", p["api_path"], p["mrr"], p["subscribers"], now, now)

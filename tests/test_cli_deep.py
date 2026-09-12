@@ -80,3 +80,12 @@ def test_cli_main_dispatch():
         with pytest.raises(SystemExit) as exc:
             main()
         assert exc.value.code == 0
+
+
+def test_cli_main_dunder_entrypoint():
+    import runpy
+    import sys
+    with patch("sys.argv", ["syntropion", "list-ventures"]):
+        with patch.dict(sys.modules):
+            sys.modules.pop("syntropion_core.cli", None)
+            runpy.run_module("syntropion_core.cli", run_name="__main__")

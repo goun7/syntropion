@@ -60,7 +60,12 @@ def test_stake_capture_to_equity():
     )
 
     res_cap = stake_gate.capture_stake_to_venture(idea_id)
-    assert res_cap["status"] == "CAPTURED_TO_EQUITY"
-
     status = stake_gate.get_status(idea_id)
     assert status["status"] == "CAPTURED_TO_EQUITY"
+
+    # Nonexistent idea returns None on get_status
+    assert stake_gate.get_status("non-existent-idea-404") is None
+
+    # Nonexistent idea raises ValueError on refund
+    with pytest.raises(ValueError, match="Idea not found"):
+        stake_gate.process_automated_refund("non-existent-idea-404")

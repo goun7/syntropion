@@ -139,3 +139,24 @@ def test_code_synthesizer_error_cases():
     # Tarifa customs fallback
     fallback_res = pilot_engines.execute_tarifa_customs_gtip("Bilinmeyen elektronik devre kartı", "US")
     assert fallback_res["determined_gtip_12_digit"] == "8471.30.00.00.00"
+
+    # LexNotice with days_passed > 8 -> HIGH_RISK_DEFECT_NOTICE_FORFEITED
+    lex_high = pilot_engines.execute_lexnotice_ttb("2026-09-01", "2026-09-15", 50000.0)
+    assert lex_high["risk_level"] == "HIGH_RISK_DEFECT_NOTICE_FORFEITED"
+
+    # Synthesizing idea with status != 'APPROVED_FOR_SYNTHESIS'
+    import uuid
+    from syntropion_core.database import db, get_current_iso_time
+    now = get_current_iso_time()
+    pending_idea_id = f"idea-pending-{uuid.uuid4().hex[:6]}"
+    exp_id = f"exp-pnd-{uuid.uuid4().hex[:6]}"
+    db.execute(
+        "INSERT INTO domain_experts (expert_id, email, full_name, industry_domain, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+        (exp_id, f"pnd_{uuid.uuid4().hex[:6]}@test.com", "Pnd Expert", "Customs", now, now)
+    )
+    db.execute(
+        "INSERT INTO domain_ideas (idea_id, expert_id, title, problem_statement, target_audience, status, created_at, updated_at) VALUES (?, ?, 'Pnd Title', 'Pnd Problem', 'Audience', 'SUBMITTED', ?, ?)",
+        (pending_idea_id, exp_id, now, now)
+    )
+    with pytest.raises(ValueError, match="Idea is not approved for synthesis"):
+        code_synthesizer.synthesize_venture(pending_idea_id)

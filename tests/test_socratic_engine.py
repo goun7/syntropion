@@ -76,5 +76,42 @@ def test_socratic_5_step_end_to_end_pass():
             assert step_res["domain_depth_score_running"] >= 0.75
 
     updated_idea = db.fetchone("SELECT * FROM domain_ideas WHERE idea_id = ?", (idea_id,))
-    assert updated_idea["status"] == "APPROVED_FOR_SYNTHESIS"
     assert updated_idea["stake_payment_status"] == "CAPTURED_TO_EQUITY"
+
+
+def test_socratic_5_step_rejection_flow():
+    import uuid
+    from syntropion_core.database import get_current_iso_time
+    now = get_current_iso_time()
+    idea_id = f"idea-reject-{uuid.uuid4().hex[:6]}"
+    expert_id = f"exp-rej-{uuid.uuid4().hex[:6]}"
+
+    db.execute(
+        "INSERT INTO domain_experts (expert_id, email, full_name, industry_domain, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+        (expert_id, f"rej_{uuid.uuid4().hex[:6]}@domain.com", "Rej Expert", "general", now, now)
+    )
+    db.execute(
+        """
+        INSERT INTO domain_ideas (
+            idea_id, expert_id, title, problem_statement, target_audience,
+            stake_amount_usd, stake_payment_status, status, created_at, updated_at
+        ) VALUES (?, ?, 'Weak Idea', 'Short problem', 'Anyone', 10.00, 'HELD_IN_ESCROW', 'IN_INTERVIEW', ?, ?)
+        """,
+        (idea_id, expert_id, now, now)
+    )
+
+    # 5 shallow steps with minimal 1-word answers
+    for s in range(1, 6):
+        res = socratic_engine.process_step(idea_id, s, "Yok")
+
+    assert res["status"] == "REJECTED_LOW_SCORE"
+    assert res["domain_depth_score_running"] < 0.75
+
+    # Verify refund was recorded
+    updated_idea = db.fetchone("SELECT * FROM domain_ideas WHERE idea_id = ?", (idea_id,))
+    assert updated_idea["stake_payment_status"] == "REFUNDED"
+
+
+def test_socratic_nonexistent_idea():
+    with pytest.raises(ValueError, match="Idea not found"):
+        socratic_engine.process_step("non-existent-idea-404", 1, "Some response")

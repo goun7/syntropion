@@ -65,5 +65,8 @@ def test_tenant_session_token():
     assert payload["venture"] == "radtrack"
     assert payload["role"] == "operator"
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="Invalid cryptographic token signature"):
         verify_tenant_session_token(token + "corrupted")
+
+    with pytest.raises(ValueError, match="Malformed token structure"):
+        verify_tenant_session_token("only-one-part-no-dots")

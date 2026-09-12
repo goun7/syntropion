@@ -14,6 +14,7 @@ services:
       - SYNTROPION_DB_PATH=/app/data/syntropion.db
       - SYNTROPION_SECRET_KEY=syntropion-prod-sovereign-master-token-2026
       - SHM_IPC_PATH=/dev/shm/syntropion_treasury_ipc
+    shm_size: "256mb"
     volumes:
       - syntropion_data:/app/data
       - /dev/shm:/dev/shm

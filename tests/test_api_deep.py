@@ -235,3 +235,48 @@ def test_api_pilots_error_handling():
 def test_api_root_index_serving():
     res = client.get("/")
     assert res.status_code == 200
+
+
+def test_api_additional_edge_cases():
+    import uuid
+    from unittest.mock import patch
+    from syntropion_core.quota_governor import quota_governor
+    from syntropion_core.plugin_loader import plugin_manager
+
+    # 1. Socratic step error with non-existent idea
+    bad_step = client.post(
+        "/api/v1/interview/step",
+        json={"idea_id": "non-existent-idea-404", "step": 1, "expert_response": "Test response"}
+    )
+    assert bad_step.status_code == 400
+
+    # 2. Quota consume engine ValueError returns 400
+    with patch.object(quota_governor, "consume_tokens", side_effect=ValueError("Engine quota overflow fault")):
+        bad_quota = client.post(
+            "/api/v1/quotas/consume",
+            json={"expert_id": "exp-test", "venture_id": "ven-test", "tokens_requested": 100}
+        )
+        assert bad_quota.status_code == 400
+
+    # 3. Root index when index.html is missing returns JSON fallback
+    with patch("os.path.exists", return_value=False):
+        res_missing = client.get("/")
+        assert res_missing.status_code == 200
+        assert "Web UI not found" in res_missing.json()["message"]
+
+    # 4. Venture synthesis auto-mount failure logs warning and returns 200
+    fresh_idea_id = f"idea-mount-fail-{uuid.uuid4().hex[:6]}"
+    db.execute(
+        """
+        INSERT INTO domain_ideas (
+            idea_id, expert_id, title, problem_statement, target_audience,
+            current_workaround, stake_amount_usd, stake_payment_status, status,
+            domain_depth_score, created_at, updated_at
+        ) VALUES (?, 'exp-pilot-001-radiologist', 'Mount Fail Test Idea', 'Problem', 'Audience', 'Workaround', 10.0, 'CAPTURED_TO_EQUITY', 'APPROVED_FOR_SYNTHESIS', 0.95, '2026-09-01', '2026-09-01')
+        """,
+        (fresh_idea_id,)
+    )
+    with patch.object(plugin_manager, "load_plugin_from_code", side_effect=Exception("Mocked mount failure")):
+        synth_res = client.post("/api/v1/ventures/synthesize", json={"idea_id": fresh_idea_id})
+        assert synth_res.status_code == 200
+        assert synth_res.json()["ast_validation_passed"] is True

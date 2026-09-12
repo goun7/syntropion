@@ -22,7 +22,7 @@ class DynamicPluginManager:
     def __init__(self, app: Optional[FastAPI] = None):
         self.app = app
         self.loaded_plugins: Dict[str, types.ModuleType] = {}
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()
 
     def set_app(self, app: FastAPI) -> None:
         """Associates the live FastAPI application instance."""

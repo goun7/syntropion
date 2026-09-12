@@ -67,3 +67,26 @@ def test_shared_memory_corrupt_packet_handling():
         if res is not None:
             assert res["checksum_valid"] is False
         corrupt_bridge.close()
+
+
+def test_shared_memory_empty_buffer_and_exception_handling():
+    from syntropion_core.shared_memory_ipc import SharedMemoryIPCBridge, PACKET_SIZE
+    from unittest.mock import patch
+    import tempfile
+
+    # 1. Empty buffer returns None
+    with tempfile.NamedTemporaryFile(delete=False) as f:
+        f.write(b"\x00" * 1024)
+        f.flush()
+        empty_bridge = SharedMemoryIPCBridge(shm_path=f.name)
+        assert empty_bridge.read_latest_telemetry() is None
+
+        # 2. Push exception triggers return False
+        with patch("fcntl.flock", side_effect=OSError("Flock error")):
+            assert empty_bridge.push_revenue_telemetry("slug", 100.0, 50.0, 30.0) is False
+
+        # 3. Read exception triggers return None
+        with patch("fcntl.flock", side_effect=OSError("Flock error")):
+            assert empty_bridge.read_latest_telemetry() is None
+
+        empty_bridge.close()
