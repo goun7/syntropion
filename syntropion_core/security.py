@@ -127,15 +127,47 @@ def create_tenant_session_token(tenant_id: str, venture_slug: str, role: str = "
     return f"{h_b64}.{p_b64}.{signature}"
 
 
+# AT-182-BULGU-1-düzeltmesi: verify-token'de-rate-limit-YOKTU ( ~294k-deneme/sn;
+# HMAC-128-bit-kırılamaz-AMA-kaynak-tüketimi-azaltması-gerekir). Basit-
+# hatalı-deneme-sayaçları ( thread-safe-değil-AMA-sayısal-yaklaşım-yeterli).
+_verify_fail_counts: Dict[str, int] = {}
+_VERIFY_FAIL_LIMIT = 100          # tenant-başına-anlık-hatalı-deneme-limiti
+_VERIFY_FAIL_WINDOW_S = 60.0      # pencere-süresi
+_verify_fail_reset: float = 0.0
+
+
+def _fail_rate_limit_hit(tenant_key: str) -> bool:
+    """Hatalı-deneme-sayacı-limiti-aşıldı-mı ( azaltma-katmanı)."""
+    global _verify_fail_reset
+    import time as _time
+    now = _time.monotonic()
+    if now - _verify_fail_reset > _VERIFY_FAIL_WINDOW_S:
+        _verify_fail_counts.clear()
+        _verify_fail_reset = now
+    return _verify_fail_counts.get(tenant_key, 0) >= _VERIFY_FAIL_LIMIT
+
+
+def _record_verify_failure(tenant_key: str) -> None:
+    _verify_fail_counts[tenant_key] = _verify_fail_counts.get(tenant_key, 0) + 1
+
+
 def verify_tenant_session_token(token: str) -> Dict[str, Any]:
     """Verifies HMAC signature and parses tenant token payload.
     AT-180-BULGU-2: exp-kontrolü — exp-YOK-veya-süresi-dolmuş → RED
-    ( çalınan-token-sonsuz-geçerli-kapandı)."""
+    ( çalınan-token-sonsuz-geçerli-kapandı).
+    AT-182-BULGU-1: hatalı-deneme-rate-limit ( kaynak-tüketimi-azaltması)."""
     # AT-169-BULGU-1-düzeltmesi: enum-önyargı — 2-parça-token "Malformed"-
     # derken-3-parça-yanlış-imza "Invalid-signature"-derdi; saldırgan-token
     # yapısını-aşamalı-tahmin-ediyordu. Artık-her-başarısızlık-AYNI-mesajı-
     # verir ( bilgi-sızdırmaz; compare_digest-hâlâ-sabit-zamanlı).
     _FAIL = "Invalid token"
+    # AT-182-BULGU-1-düzeltmesi ( NİCEL-SEÇİM): imza-ÖNCESİ-global-kilit-
+    # YAPILMADI — neden: doğrulanmamış-payload'tan-tenant çıalamayacağı-için
+    # tek-bucket="anon" olurdu ve saldırgan 100-hatalı-token ile TÜM-meşru-
+    # doğrulamaları-60s-boyunca-RED-düşürürdü ( yeni-DoS-açığı). HMAC-128-bit
+    # zaten-294k/sn'de-kırılamaz ( takım-arkadaşın-dürüst-notu). Azaltma-bu
+    # nedenle-SADECE-imza-geçtikten-SONRA-tenant-bucket'inde-uygulanır ( orada
+    # saldırgan-tenant'ı-sahteleyemez-çünkü-imza-geçmiş-olmalı).
     parts = token.split(".")
     if len(parts) != 3:
         raise ValueError(_FAIL)
@@ -151,9 +183,16 @@ def verify_tenant_session_token(token: str) -> Dict[str, Any]:
     except Exception:
         raise ValueError(_FAIL)   # bozuk-base64-da-aynı-mesaj ( AT-169)
     payload = json.loads(payload_json)
+    # AT-182: imza-GEÇTİ — tenant-bucket'inde-rate-limit ( sahteleyemez;
+    # kilit-yalnızca-o-tenant'ı-etkiler, çapraz-tenant-DoS-YOK).
+    _tk = str(payload.get("tenant_id") or "anon")
+    if _fail_rate_limit_hit(_tk):
+        _record_verify_failure(_tk)
+        raise ValueError(_FAIL)
     # AT-180-BULGU-2: exp-YOK → RED ( eski-sınırsız-token-artık-geçersiz);
     # exp-doluş → RED. Bilgi-sızıntısız ( AT-169-tek-mesaj-korundu).
     exp = payload.get("exp")
     if not isinstance(exp, int) or int(datetime.now(timezone.utc).timestamp()) > exp:
+        _record_verify_failure(_tk)
         raise ValueError(_FAIL)
     return payload
