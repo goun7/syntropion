@@ -95,7 +95,13 @@ def test_ventures_and_vesting_endpoints():
     assert res_u.json()["unlocked"] is True
 
     # Quota check
-    res_q = client.get("/api/v1/quotas/exp-pilot-001-radiologist/ven-pilot-001-radtrack")
+    # AT-166-düzeltmesi: tenant-isolasyon-artık-zorunlu → Bearer-token-geç
+    from syntropion_core.security import create_tenant_session_token
+    tok = "Bearer " + create_tenant_session_token(
+        "test-tenant", "ven-pilot-001-radtrack")
+    res_q = client.get(
+        "/api/v1/quotas/exp-pilot-001-radiologist/ven-pilot-001-radtrack",
+        headers={"Authorization": tok})
     assert res_q.status_code == 200
     assert res_q.json()["free_token_limit"] == 5000000
 

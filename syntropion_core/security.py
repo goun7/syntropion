@@ -12,7 +12,18 @@ import base64
 from typing import Dict, Any, Tuple
 from datetime import datetime, timezone
 
-SECRET_KEY = os.environ.get("SYNTROPION_SECRET_KEY", "syntropion-sovereign-master-key-2026-secure-token").encode("utf-8")
+# AT-162-güvenlik-düzeltmesi: SABİT-default-key-KALDIRILDI.
+# Önceden: os.environ.get("SYNTROPION_SECRET_KEY", "syntropion-sovereign-…")
+# Env-ayarlanmazsa-herkesçe-bilinen-anahtarla-sahte-ADMIN-session-token-ve
+# sahte-license-üretilip-GEÇERLI-oluyordu ( tam-admin-ihlali). Artık-zorunlu:
+# env-yoksa-başlatma-hatası ( fail-closed) — güvenli-olmayan-default-YOK.
+_secret = os.environ.get("SYNTROPION_SECRET_KEY")
+if not _secret or len(_secret) < 16:
+    raise RuntimeError(
+        "SYNTROPION_SECRET_KEY-ZORUNLU (env-eksik-veya-<16-karakter): "
+        "sabit-default-key-güvenlik-açığıydı (AT-162); ayarlayın"
+    )
+SECRET_KEY = _secret.encode("utf-8")
 
 FSEK_TERMS_TEXT_V1 = """
 5846 SAYILI FİKİR VE SANAT ESERLERİ KANUNU (FSEK) VE 6102 SAYILI TTK UYARINCA
@@ -114,15 +125,23 @@ def create_tenant_session_token(tenant_id: str, venture_slug: str, role: str = "
 
 def verify_tenant_session_token(token: str) -> Dict[str, Any]:
     """Verifies HMAC signature and parses tenant token payload."""
+    # AT-169-BULGU-1-düzeltmesi: enum-önyargı — 2-parça-token "Malformed"-
+    # derken-3-parça-yanlış-imza "Invalid-signature"-derdi; saldırgan-token
+    # yapısını-aşamalı-tahmin-ediyordu. Artık-her-başarısızlık-AYNI-mesajı-
+    # verir ( bilgi-sızdırmaz; compare_digest-hâlâ-sabit-zamanlı).
+    _FAIL = "Invalid token"
     parts = token.split(".")
     if len(parts) != 3:
-        raise ValueError("Malformed token structure")
+        raise ValueError(_FAIL)
     h_b64, p_b64, signature = parts
     expected_sig = hmac.new(SECRET_KEY, f"{h_b64}.{p_b64}".encode(), hashlib.sha256).hexdigest()
     if not hmac.compare_digest(signature, expected_sig):
-        raise ValueError("Invalid cryptographic token signature")
+        raise ValueError(_FAIL)
     
     # Pad base64 if needed
-    p_padded = p_b64 + "=" * (-len(p_b64) % 4)
-    payload_json = base64.urlsafe_b64decode(p_padded.encode()).decode()
+    try:
+        p_padded = p_b64 + "=" * (-len(p_b64) % 4)
+        payload_json = base64.urlsafe_b64decode(p_padded.encode()).decode()
+    except Exception:
+        raise ValueError(_FAIL)   # bozuk-base64-da-aynı-mesaj ( AT-169)
     return json.loads(payload_json)

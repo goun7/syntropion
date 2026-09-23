@@ -7,7 +7,7 @@ import os
 import uuid
 import logging
 from typing import Dict, Any, List, Optional
-from fastapi import FastAPI, HTTPException, Request, Depends, status
+from fastapi import FastAPI, HTTPException, Request, Depends, status, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -15,6 +15,7 @@ from pydantic import BaseModel
 
 logger = logging.getLogger("syntropion.api")
 from syntropion_core.database import db, get_current_iso_time
+from syntropion_core.security import verify_tenant_session_token  # AT-166
 from syntropion_core.schemas import (
     ProposalSubmitRequest, ProposalSubmitResponse,
     SocraticStepRequest, SocraticEvaluationResult,
@@ -378,17 +379,54 @@ async def unlock_vesting_tier(payload: MilestoneUnlockRequest) -> Dict[str, Any]
         raise HTTPException(status_code=400, detail=str(e))
 
 
+# AT-166-güvenlik-düzeltmesi: tenant-isolasyon-YOKTU — URL-parametreleriyle
+# herhangi-venture/expert-verisi-çekilirken-çağrıcı-tenant-kimliği-
+# DOĞRULANMIYORDU ( A-tenant-B-venture'ın-verisini-okuyordu). Artık-zorunlu:
+# Bearer-token'dan-çözülen-tenant-venture-ile-EŞLEŞMELİ ( fail-closed).
+def _require_tenant_for_venture(authorization: Optional[str], venture_id: str) -> str:
+    """Bearer-token'dan-tenant-çöz-ve-venture-ile-EŞLEŞTİR ( fail-closed)."""
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(
+            status_code=401,
+            detail="Authorization Bearer token required for tenant isolation (AT-166)"
+        )
+    token = authorization[len("Bearer "):]
+    try:
+        claims = verify_tenant_session_token(token)
+    except Exception as exc:
+        raise HTTPException(status_code=401, detail=f"Invalid session token: {exc}")
+    tenant_id = claims.get("tenant_id")
+    token_venture = claims.get("venture")
+    if not tenant_id or (token_venture and token_venture != venture_id):
+        raise HTTPException(
+            status_code=403,
+            detail=f"tenant {tenant_id!r} is not authorized for venture "
+                   f"{venture_id!r} (AT-166 tenant-isolation)"
+        )
+    return tenant_id
+
+
 @app.get("/api/v1/vesting/{venture_id}/{expert_id}")
-async def get_vesting_status(venture_id: str, expert_id: str) -> Dict[str, Any]:
+async def get_vesting_status(
+    venture_id: str,
+    expert_id: str,
+    authorization: Optional[str] = Header(default=None),
+) -> Dict[str, Any]:
     """Returns unlocked rev-share and license key for an expert."""
+    _require_tenant_for_venture(authorization, venture_id)
     return vesting_engine.get_expert_vesting_status(venture_id, expert_id)
 
 
 # --- Token Quota Governor Endpoints ---
 
 @app.get("/api/v1/quotas/{expert_id}/{venture_id}", response_model=QuotaStatusResponse)
-async def check_token_quota(expert_id: str, venture_id: str) -> QuotaStatusResponse:
+async def check_token_quota(
+    expert_id: str,
+    venture_id: str,
+    authorization: Optional[str] = Header(default=None),
+) -> QuotaStatusResponse:
     """Returns monthly 5M token quota usage and overflow metering status."""
+    _require_tenant_for_venture(authorization, venture_id)
     res = quota_governor.get_status(expert_id, venture_id)
     return QuotaStatusResponse(**res)
 

@@ -65,8 +65,11 @@ def test_tenant_session_token():
     assert payload["venture"] == "radtrack"
     assert payload["role"] == "operator"
 
-    with pytest.raises(ValueError, match="Invalid cryptographic token signature"):
+    # AT-169-BULGU-1-kapandı: tüm-başarısızlık-yolları-artık-tek-tip-_FAIL
+    # = "Invalid token" ( enum-önyargısı-kapandı — hangi-yolun-başarısız-
+    # olduğundan-bilgi-sızmaz: bozuk-imza/yanlış-bölüm-sayısı/decode-hatası).
+    with pytest.raises(ValueError, match="Invalid token"):
         verify_tenant_session_token(token + "corrupted")
 
-    with pytest.raises(ValueError, match="Malformed token structure"):
+    with pytest.raises(ValueError, match="Invalid token"):
         verify_tenant_session_token("only-one-part-no-dots")

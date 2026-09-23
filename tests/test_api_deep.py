@@ -163,7 +163,11 @@ def test_api_vesting_and_quota_endpoints():
     expert_id = idea["expert_id"]
 
     # Vesting status
-    vesting_res = client.get(f"/api/v1/vesting/{venture_id}/{expert_id}")
+    # AT-166-düzeltmesi: tenant-isolasyon-zorunlu → Bearer-token-geç
+    from syntropion_core.security import create_tenant_session_token
+    tok = "Bearer " + create_tenant_session_token("test-tenant", venture_id)
+    vesting_res = client.get(f"/api/v1/vesting/{venture_id}/{expert_id}",
+                             headers={"Authorization": tok})
     assert vesting_res.status_code == 200
 
     # Vesting unlock error (non-existent venture triggers 400 ValueError)
@@ -174,7 +178,8 @@ def test_api_vesting_and_quota_endpoints():
     assert bad_unlock.status_code == 400
 
     # Quota check
-    quota_res = client.get(f"/api/v1/quotas/{expert_id}/{venture_id}")
+    quota_res = client.get(f"/api/v1/quotas/{expert_id}/{venture_id}",
+                           headers={"Authorization": tok})
     assert quota_res.status_code == 200
     assert quota_res.json()["free_token_limit"] == 5_000_000
 
