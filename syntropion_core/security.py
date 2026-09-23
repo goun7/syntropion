@@ -108,14 +108,18 @@ def verify_lifetime_license_key(key: str, venture_slug: str, expert_id: str) -> 
 
 # --- Lightweight JWT-Style Session Signer ---
 
-def create_tenant_session_token(tenant_id: str, venture_slug: str, role: str = "expert") -> str:
-    """Creates a base64url HMAC signed tenant token."""
+def create_tenant_session_token(tenant_id: str, venture_slug: str, role: str = "expert",
+                                ttl_seconds: int = 3600) -> str:
+    """Creates a base64url HMAC signed tenant token.
+    AT-180-BULGU-2: exp-zorunlu ( çalınan-token-sonsuz-geçerli-DEĞİL-artık)."""
     header = {"alg": "HS256", "typ": "JWT"}
+    now = int(datetime.now(timezone.utc).timestamp())
     payload = {
         "tenant_id": tenant_id,
         "venture": venture_slug,
         "role": role,
-        "iat": int(datetime.now(timezone.utc).timestamp()),
+        "iat": now,
+        "exp": now + ttl_seconds,   # AT-180: token-süresi-sınırı
     }
     h_b64 = base64.urlsafe_b64encode(json.dumps(header).encode()).decode().rstrip("=")
     p_b64 = base64.urlsafe_b64encode(json.dumps(payload).encode()).decode().rstrip("=")
@@ -124,7 +128,9 @@ def create_tenant_session_token(tenant_id: str, venture_slug: str, role: str = "
 
 
 def verify_tenant_session_token(token: str) -> Dict[str, Any]:
-    """Verifies HMAC signature and parses tenant token payload."""
+    """Verifies HMAC signature and parses tenant token payload.
+    AT-180-BULGU-2: exp-kontrolü — exp-YOK-veya-süresi-dolmuş → RED
+    ( çalınan-token-sonsuz-geçerli-kapandı)."""
     # AT-169-BULGU-1-düzeltmesi: enum-önyargı — 2-parça-token "Malformed"-
     # derken-3-parça-yanlış-imza "Invalid-signature"-derdi; saldırgan-token
     # yapısını-aşamalı-tahmin-ediyordu. Artık-her-başarısızlık-AYNI-mesajı-
@@ -137,11 +143,17 @@ def verify_tenant_session_token(token: str) -> Dict[str, Any]:
     expected_sig = hmac.new(SECRET_KEY, f"{h_b64}.{p_b64}".encode(), hashlib.sha256).hexdigest()
     if not hmac.compare_digest(signature, expected_sig):
         raise ValueError(_FAIL)
-    
+
     # Pad base64 if needed
     try:
         p_padded = p_b64 + "=" * (-len(p_b64) % 4)
         payload_json = base64.urlsafe_b64decode(p_padded.encode()).decode()
     except Exception:
         raise ValueError(_FAIL)   # bozuk-base64-da-aynı-mesaj ( AT-169)
-    return json.loads(payload_json)
+    payload = json.loads(payload_json)
+    # AT-180-BULGU-2: exp-YOK → RED ( eski-sınırsız-token-artık-geçersiz);
+    # exp-doluş → RED. Bilgi-sızıntısız ( AT-169-tek-mesaj-korundu).
+    exp = payload.get("exp")
+    if not isinstance(exp, int) or int(datetime.now(timezone.utc).timestamp()) > exp:
+        raise ValueError(_FAIL)
+    return payload

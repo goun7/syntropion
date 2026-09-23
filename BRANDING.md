@@ -51,7 +51,7 @@ Tüm logo varyasyonları [`web/assets/brand/`](web/assets/brand/) dizini altınd
 ## 📁 4. Dizin ve Sembolik Bağ Haritası
 
 ```
-/home/gokun/projects/tuketici/
+/home/gokun/projects/02_sahis/
 ├── 18-Syntropion/                        <-- Gerçek Proje Kök Dizini
 │   ├── web/assets/
 │   │   ├── logo.jpg                      <-- Birincil Logo (Seçenek 1)
@@ -62,7 +62,7 @@ Tüm logo varyasyonları [`web/assets/brand/`](web/assets/brand/) dizini altınd
 │   │       └── logo_opt_*.jpg                     (Tüm Vektör Alternatifleri)
 │   ├── BRANDING.md                       <-- Bu Rehber Belge
 │   └── syntropion_core/                  <-- Çekirdek Motor
-├── 18-OtonomYapayZekaGirisimStudyosu -> /home/gokun/projects/tuketici/18-Syntropion
-├── Syntropion -> /home/gokun/projects/tuketici/18-Syntropion
-└── syntropion -> /home/gokun/projects/tuketici/18-Syntropion
+├── 18-OtonomYapayZekaGirisimStudyosu -> /home/gokun/projects/02_sahis/18-Syntropion
+├── Syntropion -> /home/gokun/projects/02_sahis/18-Syntropion
+└── syntropion -> /home/gokun/projects/02_sahis/18-Syntropion
 ```
