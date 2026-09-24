@@ -9,6 +9,17 @@
 
 ---
 
+## 🔧 Kurulum ( Gerekli-Ortam-Değişkeni)
+
+> **AT-162-güvenlik-kapısı:** `SYNTROPION_SECRET_KEY` **ZORUNLUDUR** ( ≥16-karakter).
+> Anahtar-bezendirilmez: eksik-veya-kısa → import-anında-**RED** ( fail-closed;
+> AT-186: run_all-dışı-çalıştırmada-testler-guard'ı-kendisi-taşır).
+
+```bash
+export SYNTROPION_SECRET_KEY="simnet-syntropion-test-key-32b"   # üretimde-gerçek
+python3 -m pytest tests/ -q    # 89-passed
+```
+
 ## 🌟 Neden SYNTROPION?
 
 1. **$10 Stake-to-Propose & Sokratik Filtre:** Yapay zeka ile uydurulmuş spam fikirleri engellemek için $10 emanet blokesi ve 5 adımlı **Domain Depth Score (DDS >= 0.75)** sınavı uygulanır. Kabul edilmeyenlerin parası anında kartına iade edilir.
