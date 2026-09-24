@@ -1,0 +1,19 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "syntropion"
+dynamic = ["version"]
+description = "SYNTROPION OS — Autonomous AI Venture Studio & Micro-SaaS Factory Operating System"
+requires-python = ">=3.11"
+
+[tool.hatch.version]
+path = "syntropion_core/__init__.py"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+# AT-162: SECRET_KEY-ZORUNLU ( ≥16-karakter) — import-anında-RED.
+# testler-kendisi-guard'ı-taşır ( AT-186); run_all-dışı-çalıştırmada-da-yeşil.
