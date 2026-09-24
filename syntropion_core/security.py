@@ -170,10 +170,15 @@ def verify_tenant_session_token(token: str) -> Dict[str, Any]:
     # saldırgan-tenant'ı-sahteleyemez-çünkü-imza-geçmiş-olmalı).
     parts = token.split(".")
     if len(parts) != 3:
+        _record_verify_failure("anon")   # AT-183-BULGU-1: biçim-hatalı-da-say
         raise ValueError(_FAIL)
     h_b64, p_b64, signature = parts
     expected_sig = hmac.new(SECRET_KEY, f"{h_b64}.{p_b64}".encode(), hashlib.sha256).hexdigest()
     if not hmac.compare_digest(signature, expected_sig):
+        # AT-183-BULGU-1: yanlış-imza-da-sayılır ( anon-bucket). RED-kararı
+        # verilmez ( anon-DoS-kaygısı — AT-182-notu) AMA sayaç-brute-force
+        # hacmini-gözlemlenebilir-kılar; tenant-limiti-imza-geçince-çalışır.
+        _record_verify_failure("anon")
         raise ValueError(_FAIL)
 
     # Pad base64 if needed
