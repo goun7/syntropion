@@ -75,8 +75,8 @@ Tarayıcınızda açın: **http://localhost:8000/**
 
 ## 🎯 5 Hazır Dikey Pilot Mikro-SaaS
 
-1. **RadTrack AI:** Radyoloji Onkoloji Lezyon Kıyaslama & RECIST 1.1 Takip Ajanı ($8,358 MRR).
-2. **LexNotice AI:** 6102 Sayılı TTK Ayıplı Mal İhtarname ve Hak Düşürücü Süre Motoru ($8,940 MRR).
-3. **TaxCrossAudit:** GİB e-Fatura vs Muhasebe Fişi KDV2 & Ba-Bs Çapraz Denetimi ($9,790 MRR).
-4. **TarifaCustoms AI:** 12 Haneli GTİP ve 4458 Sayılı Gümrük Kanunu Menşe Zırhı ($8,372 MRR).
-5. **DemurrageShield:** Konteyner Ardiye, Serbest Süre ve Haksız Demuraj İtiraz Ajanı ($8,715 MRR).
+1. **RadTrack AI:** Radyoloji Onkoloji Lezyon Kıyaslama & RECIST 1.1 Takip Ajanı (MRR verisi YOK — demo).
+2. **LexNotice AI:** 6102 Sayılı TTK Ayıplı Mal İhtarname ve Hak Düşürücü Süre Motoru (MRR verisi YOK — demo).
+3. **TaxCrossAudit:** GİB e-Fatura vs Muhasebe Fişi KDV2 & Ba-Bs Çapraz Denetimi (MRR verisi YOK — demo).
+4. **TarifaCustoms AI:** 12 Haneli GTİP ve 4458 Sayılı Gümrük Kanunu Menşe Zırhı (MRR verisi YOK — demo).
+5. **DemurrageShield:** Konteyner Ardiye, Serbest Süre ve Haksız Demuraj İtiraz Ajanı (MRR verisi YOK — demo).
