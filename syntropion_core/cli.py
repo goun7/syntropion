@@ -32,14 +32,33 @@ def cmd_seed_pilots(args):
 
 
 def cmd_list_ventures(args):
-    """Lists all registered micro-SaaS ventures."""
+    """Lists all registered micro-SaaS ventures — MRR değerleri dürüstçe etiketlenir."""
+    # DURUST (AT-HONEST-001): MRR iddialarını gerçek abonelik satırlarıyla
+    # kıyasla; doğrulanmayan değer "[simülasyon]" etiketiyle gösterilir.
+    from syntropion_core.honest_metrics import mrr_provenance
+    prov = mrr_provenance()
+
     ventures = db.fetchall("SELECT venture_id, code_slug, display_name, status, current_monthly_mrr_usd, active_b2b_subscribers FROM ventures ORDER BY current_monthly_mrr_usd DESC")
-    print("\n" + "=" * 95)
+    print("\n" + "=" * 110)
     print(f"{'SLUG':<20} | {'DISPLAY NAME':<26} | {'STATUS':<15} | {'MRR (USD)':<12} | {'SUBS':<6}")
-    print("=" * 95)
+    print("=" * 110)
     for v in ventures:
-        print(f"{v['code_slug']:<20} | {v['display_name'][:26]:<26} | {v['status']:<15} | ${v['current_monthly_mrr_usd']:<11.2f} | {v['active_b2b_subscribers']:<6}")
-    print("=" * 95 + "\n")
+        # DURUST: abonelik tablosu boşken MRR>0 → uydurma işareti konur.
+        tag = ""
+        if v["current_monthly_mrr_usd"] > 0 and prov["active_subscription_rows"] == 0:
+            tag = "  [simülasyon — b2b_subscriptions=0]"
+        print(f"{v['code_slug']:<20} | {v['display_name'][:26]:<26} | {v['status']:<15} | ${v['current_monthly_mrr_usd']:<11.2f} | {v['active_b2b_subscribers']:<6}{tag}")
+    print("=" * 110)
+    # DURUST: kanıt zeminini göster
+    print(f"  DOĞRULANAN MRR (ACTIVE b2b_subscriptions): ${prov['verified_mrr_usd']:,.2f} "
+          f"| iddia: ${prov['claimed_mrr_usd']:,.2f} | verdict: {prov['verdict']}")
+    print("  DURUST: MRR değerleri demo seed sabitleridir; gerçek abonelik verisi yok.\n")
+
+
+def cmd_honest_metrics(args):
+    """Dürüst metrik raporunu göster — uydurma değer içermez."""
+    from syntropion_core.honest_metrics import render_honest_report
+    print(render_honest_report())
 
 
 def cmd_submit_idea(args):
@@ -127,6 +146,10 @@ def main():
     # list-ventures
     p_list = subparsers.add_parser("list-ventures", help="List active micro-SaaS ventures")
     p_list.set_defaults(func=cmd_list_ventures)
+
+    # honest-metrics (AT-HONEST-001)
+    p_hm = subparsers.add_parser("honest-metrics", help="Dürüst metrik raporu — uydurma değer içermez")
+    p_hm.set_defaults(func=cmd_honest_metrics)
 
     # submit-idea
     p_sub = subparsers.add_parser("submit-idea", help="Submit a new domain proposal")

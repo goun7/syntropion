@@ -70,7 +70,12 @@ class RevenueRouter:
             )
         )
 
-        # Update Venture current MRR
+        # DURUST (AT-HONEST-001): bu "current MRR" guncellemesi bir fatura
+        # donemine girilen BRUT geliri ventures.current_monthly_mrr_usd
+        # alanina yazar. Bu alan gercek abonelik kayitlarindan
+        # (b2b_subscriptions) TURETILMEZ; dolayisiyla honest_metrics
+        # uzerinden mrr_provenance() "SIMULATED/PARTIALLY_VERIFIED" doner.
+        # Deger silinmedi; etiketlendi.
         db.execute(
             "UPDATE ventures SET current_monthly_mrr_usd = ?, updated_at = ? WHERE venture_id = ?",
             (float(gross_dec), now, venture_id)

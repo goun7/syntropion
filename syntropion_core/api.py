@@ -77,6 +77,7 @@ async def circuit_breaker_guard(request: Request, call_next):
     exempt_paths = {
         "/healthz",
         "/metrics",
+        "/honest-metrics",
         "/api/docs",
         "/api/redoc",
         "/docs",
@@ -131,6 +132,15 @@ async def system_metrics() -> Dict[str, Any]:
     expert_payouts = payouts_sum["expert_payouts"] or 0.0
     treasury_transfers = payouts_sum["treasury_transfers"] or 0.0
 
+    # DURUST (AT-HONEST-001): yukaridaki portfolio_total_mrr_usd ve
+    # total_active_b2b_subscribers DEGERLERI SIMULASYON-DIR: seed demo
+    # sabitlerinden geliyor, gercek odemeli abonelik verisinden DEGIL
+    # (b2b_subscriptions tablosu 0 satir). Asagidaki "mrr_provenance"
+    # alani bu gercegi acikca belirtir — sayilar degistirilmedi, etiketlendi.
+    # Bu sadece ek alan ekler; mevcut tuketicilerin ciktisi bozulmaz.
+    from syntropion_core.honest_metrics import mrr_provenance
+    prov = mrr_provenance()
+
     return {
         "total_domain_experts": experts_count,
         "total_proposals_submitted": ideas_count,
@@ -139,8 +149,25 @@ async def system_metrics() -> Dict[str, Any]:
         "total_active_b2b_subscribers": total_subs,
         "total_expert_rev_share_paid_usd": round(expert_payouts, 2),
         "total_treasury_accumulated_usd": round(treasury_transfers, 2),
+        # DURUST: MRR iddiasi'nin dogrulanmis hali (0.0 = kanitlanmadi).
+        "mrr_provenance": prov,
         "timestamp": get_current_iso_time()
     }
+
+
+@app.get("/honest-metrics")
+async def honest_metrics_endpoint() -> Dict[str, Any]:
+    """
+    Dürüst operasyonel metrikler — MASTraceBench (arXiv:2609.34496) trajectory
+    + Token Cost, ResonAct (arXiv:2609.34701) tool-reliability / context-health,
+    CEO Arena (arXiv:2609.34821) MRR-gerceklilik teshisi.
+
+    Bu uç NAM-ı diğer uçların aksine HİÇBİR uydurma değer döndürmez;
+    "SIMULATED" bulguları açıkça etiketler. Safe-Mode'da da erişilebilir
+    (read-only teşhis).
+    """
+    from syntropion_core.honest_metrics import honest_portfolio_snapshot
+    return honest_portfolio_snapshot()
 
 
 # --- Safe Shutdown & Circuit Breaker Endpoints ---

@@ -157,6 +157,9 @@ class DatabaseManager:
                 "display_name": "RadTrack AI",
                 "tagline": "Radyoloji Lezyon Kıyaslama & RECIST 1.1 Takip Ajanı",
                 "api_path": "/api/v1/plugins/radtrack",
+                # DURUST (AT-HONEST-001): bu MRR UYDURMADIR — gercek odemeli abonelik
+                # kaydi YOK (b2b_subscriptions=0). Deger silinmedi, etiketlendi.
+                # Gercek olcum: syntropion_core.honest_metrics.mrr_provenance()
                 "mrr": 8358.00,
                 "subscribers": 42
             },
@@ -177,6 +180,7 @@ class DatabaseManager:
                 "display_name": "LexNotice AI",
                 "tagline": "Ticari İhtarname ve TTK Zaman Aşımı Erken Uyarı Ajanı",
                 "api_path": "/api/v1/plugins/lexnotice",
+                # DURUST (AT-HONEST-001): bu MRR UYDURMADIR — demo seed degeri.
                 "mrr": 8940.00,
                 "subscribers": 60
             },
@@ -197,6 +201,7 @@ class DatabaseManager:
                 "display_name": "TaxCrossAudit",
                 "tagline": "KDV2 ve Ba-Bs e-Fatura Çapraz Denetim ve İzaha Davet Kalkanı",
                 "api_path": "/api/v1/plugins/taxcross",
+                # DURUST (AT-HONEST-001): bu MRR UYDURMADIR — demo seed degeri.
                 "mrr": 9790.00,
                 "subscribers": 110
             },
@@ -217,6 +222,7 @@ class DatabaseManager:
                 "display_name": "TarifaCustoms AI",
                 "tagline": "12 Haneli GTİP Tespiti ve Menşe Risk Analiz Motoru",
                 "api_path": "/api/v1/plugins/tarifa",
+                # DURUST (AT-HONEST-001): bu MRR UYDURMADIR — demo seed degeri.
                 "mrr": 8372.00,
                 "subscribers": 28
             },
@@ -237,6 +243,7 @@ class DatabaseManager:
                 "display_name": "DemurrageShield",
                 "tagline": "Konteyner Serbest Süre ve Haksız Demuraj Fatura İtiraz Motoru",
                 "api_path": "/api/v1/plugins/demurrage",
+                # DURUST (AT-HONEST-001): bu MRR UYDURMADIR — demo seed degeri.
                 "mrr": 8715.00,
                 "subscribers": 35
             }
@@ -268,6 +275,11 @@ class DatabaseManager:
             )
 
             # 3. Venture
+            # DURUST (AT-HONEST-001): asagidaki MRR/abone sayilari ve
+            # 'PRODUCTION_LIVE' durumu DEMO amacli seed sabitleridir — gercek
+            # Stripe aboneliklerinden gelmez. b2b_subscriptions tablosu
+            # bu pilotlar icin 0 satirdir. Silinmedi; etiketlendi. Gercek
+            # durum icin: honest_metrics.mrr_provenance()
             self.execute(
                 """
                 INSERT INTO ventures (
