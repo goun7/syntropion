@@ -66,7 +66,7 @@ README'de eski değerler "MRR verisi YOK — demo" etiketlendi; kodda ise
 ([database.py], [api.py] `/metrics` çıkışına `mrr_provenance` alanı eklendi).
 Geriye dönük şeffaflık: **iddia aynen durur, yanına "doğrulanmadı" etiketi konur.**
 
-Testler: **293 passed, 0 failed rc=0** (LEED-ölçümü 2026-10-14, `pytest tests/`, 26 dosya) — eski baseline 53 → 89 → 95 → 293; hiçbir test uydurma değer
+Testler: **647 passed, 0 failed rc=0** (LEED-ölçümü 2026-10-14, `pytest tests/`) — eski baseline 53 → 89 → 95 → 293 → 647; hiçbir test uydurma değer
 üretmez; her biri gerçek SQL COUNT/SUM ile ölçüldüğünü doğrular.
 
 ---
