@@ -9,3 +9,4 @@ htmlcov/
 *.db-shm
 .fallback_shm_ipc.bin
 .mergen-id
+*.db
