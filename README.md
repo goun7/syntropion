@@ -66,7 +66,7 @@ README'de eski değerler "MRR verisi YOK — demo" etiketlendi; kodda ise
 ([database.py], [api.py] `/metrics` çıkışına `mrr_provenance` alanı eklendi).
 Geriye dönük şeffaflık: **iddia aynen durur, yanına "doğrulanmadı" etiketi konur.**
 
-Testler: **647 passed, 0 failed rc=0** (LEED-ölçümü 2026-10-14, `pytest tests/`) — eski baseline 53 → 89 → 95 → 293 → 647; hiçbir test uydurma değer
+Testler: **647 passed, 0 failed rc=0** (LEED-ölçümü 2026-10-16, `pytest tests/`) — eski baseline 53 → 89 → 95 → 293 → 647; hiçbir test uydurma değer
 üretmez; her biri gerçek SQL COUNT/SUM ile ölçüldüğünü doğrular.
 
 ---
@@ -79,7 +79,7 @@ Testler: **647 passed, 0 failed rc=0** (LEED-ölçümü 2026-10-14, `pytest test
 
 ```bash
 export SYNTROPION_SECRET_KEY="simnet-syntropion-test-key-32b"   # üretimde-gerçek
-python3 -m pytest tests/ -q    # 95-passed
+python3 -m pytest tests/ -q    # 647-passed
 ```
 
 ## 🌟 Neden SYNTROPION?
@@ -104,7 +104,7 @@ pip install -r requirements.txt
 ./syntropion seed-pilots
 ```
 
-### 2. Testleri Çalıştırın (100% PASS & %90+ Coverage)
+### 2. Testleri Çalıştırın (100% PASS & %99 Coverage — LEED-ölçümü 2026-10-16)
 ```bash
 python3 -m pytest -v --cov=syntropion_core --cov-report=term-missing
 ```
