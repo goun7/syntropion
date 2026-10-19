@@ -149,7 +149,7 @@ Tarayıcınızda açın: **http://localhost:8000/**
 
 ## 📁 İlgili
 
-- `PROJE_KAGIDI.md` — tam teknik kağıt
+- `Fikir.md` / `HONEST_METRICS.md` / `BRANDING.md` — teknik-kagidin-uc-adimlari
 - **Mesh bağlantıları** — Syntropion OS aynı ödeme katmanını paylaşır:
   - [63-Sester](../63-Sester) — x402 ödeme-metering + makbuz katmanı
     (hash-chain anchor, [x402 #2332](https://github.com/x402-foundation/x402/issues/2332)
