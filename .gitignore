@@ -10,3 +10,7 @@ htmlcov/
 .fallback_shm_ipc.bin
 .mergen-id
 *.db
+dist/
+build/
+*.egg-info/
+__pycache__/

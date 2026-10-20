@@ -11,6 +11,11 @@ requires-python = ">=3.11"
 [tool.hatch.version]
 path = "syntropion_core/__init__.py"
 
+# G44 ( 2026-10-20): hatchling varsayilan-olarak hangi-paketin-dahil-edilecegini
+# bulamiyordu ( wheel-basarisiz). Paket-yolu acikca-belirtildi.
+[tool.hatch.build.targets.wheel]
+packages = ["syntropion_core"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
