@@ -40,6 +40,9 @@ jobs:
       - name: Execute Test Suite with Coverage Gate
         env:
           SHM_IPC_PATH: /dev/shm/syntropion_ci_ipc
-          SYNTROPION_DB_PATH: :memory:
+          # G48-2026-10-22: SYNTROPION_DB_PATH-!:memory:-CI'da-AYRICA-hatali-
+          # ( connection-basina-yeni-bellek-DB'si-acilir, schema-kaybolur ->
+          # 29-failed + 34-error). tests/conftest.py-zaten-gecici-dosyaya-
+          # izole-ediyor; bu-env'i-set-ETMEK-o-korumayi-eziyordu.
         run: |
           python -m pytest -v --cov=syntropion_core --cov-report=term-missing --cov-fail-under=98
